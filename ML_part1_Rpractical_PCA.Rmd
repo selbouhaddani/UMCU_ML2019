@@ -1,0 +1,232 @@
+---
+title: "ML course - Part 1 - PCA"
+author: "Said el Bouhaddani"
+date: '`r Sys.Date()`'
+output:
+  rmdformats::material:
+    highlight: kate
+    self_contained: no
+bibliography: references.bib
+---
+
+```{r global_options, include=FALSE}
+library(knitr)
+library(rmdformats)
+
+opts_chunk$set(fig.path='Figs/', eval=FALSE,
+               echo=TRUE, warning=TRUE, message=TRUE, dev='png', dpi=600)
+```
+
+# Introduction
+
+This is a file with exercises for the ML 2019 course, given at the UMC Utrecht. The exercises are divided in two parts. This is part 1: Principal components analysis. 
+
+## PCA recap
+As discussed in the lecture, the PCA solution for finding $w$ that maximizes the variance of the projected data matrix $Xw$ is the first eigenvector of $X^\top X$. Further directions of maximal variance are given by the subsequent eigenvectors. We typically collect all of these eigenvectors in a matrix $W$. The projected data is given by $T:=XW$. The matrix $T$ is a matrix of scores per column. Based on these two matrices, we can approximate $X$ by $TW^\top$ (which is nothing more than the projection of $X$ onto $WW^\top$).
+
+## Quick tips
+
+- To obtain the eigenvectors of a matrix $A$, one can use `eigen(A)`. The output is a list with elements `values` and `vectors`. These elements can be accessed with the `$` key. 
+- The element `vectors` is a matrix of size $p \times p$, this matrix can be subsetted with the `[` operator, e.g. `eigen(A)$vectors[,1]`.
+- The scores can be obtained by multiplying $X$ and $W$, i.e. `T = X %*% W` where `W = eigen(crossprod(X))$vectors`
+
+## Exercises
+
+- Easy exercises
+    - Show that $TW^\top$ is "nothing more than" $XWW^\top$
+    - Simulate two vectors `x1 = rnorm(100)` and `x2 = rnorm(100)`, and inspect the weights of the data matrix `X = cbind(x1, x2)`.
+    - Now introduce correlation, for example by running `x2 = x1 + rnorm(100, sd = 0.1*sd(x1))`. Now run the PCA decomposition again and inspect the weights. 
+        - How does correlation affect the weights?
+- More difficult exercises, you can safely skip it for now
+    - Show that $min_w ||X - X ww^\top||^2_F$ s.t. $w^\top w = 1$ and $min_w ||X^\top X - c\,ww^\top||^2_F$ s.t. $w^\top w = 1$ are equivalent optimization problems as $\max_w w^\top X^\top X w$ s.t. $w^\top w = 1$
+    - What is wrong with the following optimization problem: $\max_w w^\top X^\top X w$ (with $w$ unrestricted)
+    - Formulate the optimization problem for finding the second direction $w_2$ given the first direction $w_1$
+
+
+# Load real data 
+
+We start with transcriptomic and metabolomic measurements from a Finnish population cohort, as part of the DILGOM study. The transcriptomic measurements can be found at ArrayExpress (http://www.ebi.ac.uk/arrayexpress/) under accession number `E-TABM-1036` (`E-TABM-1036.processed.1.zip`). The metabolite measurements are attached as supplemental material at [@Inouye2010msb] (`msb201093-sup-0002.zip`). However, you can use the R code below to download them.
+
+## Load the data
+
+Now we download the data and prepare it in the right format (samples as rows and genes as columns) and give the rows and columns the right names. Note that this code chunk automatically downloads and loads the transcriptomic data into memory.
+```{r Load RNA data, eval = F}
+if(!("test.tab" %in% list.files())){
+  ## If you didn't download the expression data, 
+  ## this code will download it to the current directory (getwd())
+  temp <- tempfile()
+  download.file(
+    "http://www.ebi.ac.uk/arrayexpress/files/E-TABM-1036/E-TABM-1036.processed.1.zip",
+    temp)
+  rna0 <- read.table(unzip(temp, "test.tab"), sep='\t')
+  unlink(temp); rm(temp)
+} else {
+## Or if you've downloaded test.tab already we simply load it
+  rna0 <- read.table("test.tab", sep='\t')
+}
+rna1 <- t(rna0[-(1:2),-1])
+rna2 <- matrix(as.numeric(rna1), nrow = nrow(rna1))
+dimnames(rna2) <- list(as.character(unlist(rna0[1,-1])),unlist(rna0[-(1:2),1]))
+rna2 <- rna2[order(row.names(rna2)), ] # Order rows according to the participant ID
+```
+
+We define a function to pick only the top `100*prop` percent of the genes that have highest expression level, intersected with the top `100*prop` percent with highest Inter Quantile Range [see @Gonzalez2009]. We apply it to our gene expression data, with `prop=0.75`.
+```{r filter genes}
+filter_rna <- function(rna=rna, prop = 0.75){
+  #calculate the maximum of gene expression per each gene and take the top
+  maxGE <- apply(rna, 2, max)
+  propGEmax <- quantile(maxGE, prop)
+  #take the IQR of each gene and take the top genes
+  IQRGE <- apply(rna, 2, IQR, na.rm=TRUE)
+  propGEIQR <- quantile(IQRGE, prop)
+  #selected genes/probes are the intersection of the two previous sets
+  filter2 <- (intersect(which(maxGE> propGEmax), which(IQRGE> propGEIQR)))
+  return(filter2)
+}
+```
+
+```{r filter genes v2, eval = F}
+rna3 <- rna2[,filter_rna(rna2)]
+rm(rna0)
+rm(rna1)
+```
+
+We also download and load the metabolite data and process it to have samples as rows and set the columns names.
+```{r Load metabolite data, eval = F}
+if(!("metabonomic_data.txt" %in% list.files())){
+  temp <- tempfile()
+  download.file(
+    "http://msb.embopress.org/content/msb/6/1/441/DC3/embed/inline-supplementary-material-3.zip",
+    temp)
+  metab0 <- read.table(unzip(temp, "metabonomic_data.txt"), header = T)
+  unlink(temp); rm(temp)
+} else {
+  ## Or if you've downloaded metabonomic_data.txt already run the next line
+  metab0 <- read.table("metabonomic_data.txt", header=T)
+}
+metab1 <- t(metab0[,-1])
+colnames(metab1) <- metab0$Metabolite
+```
+
+## Missing data imputation
+
+**Packages needed**
+
+* `install.packages("VIM")`
+* `install.packages("missForest")`
+
+Note that we have missingness in the metabolite data. The functions in OmicsPLS currently do not support missing data, as this is a delicate matter.
+Some diagostics on the missingness in the metabolite data can be obtained. Firstly we plot a histogram of the missing data. We need the `VIM` package for this.
+```{r Visualize missingness, warning=FALSE, eval=F}
+VIM::aggr(metab1, col=c('navyblue','red'), numbers=TRUE, sortVars=FALSE,
+          labels=names(data), cex.axis=.7, gap=3, 
+          ylab=c("Histogram of missing data","Pattern"))
+```
+
+We remove participants with 100\% missing metabolite measurements, i.e. missing rows.
+```{r Remove complete missings, eval=F}
+NAs_in_metab1 <- which(apply(metab1, 1, function(e) sum(is.na(e))/length(e))==1)
+metab2 <- metab1[-NAs_in_metab1,]
+rna4 <- rna3[-NAs_in_metab1,]
+```
+
+
+Random Forests can be used to impute missing metabolites. We use the `missForest` package to do this. It takes some time, about 8 minutes on a modest i5 laptop, as can be seen from the output.
+```{r Impute metabolites, eval=F}
+metab2.imp <- missForest::missForest(metab2, verbose = T)
+metab <- scale(metab2.imp$ximp, scale=F)
+rna <- scale(rna4, scale = F)
+# #Run if needed:
+# save(rna,metab,file="rna_metab.RData")
+```
+In the last two lines, we took one imputed instance of the metabolite data and centered the columns of the RNA and metabolite data to have zero mean.
+We denote them by `rna` (transcripts) and `metab` (metabolites).
+
+## Inspect the data: descriptives
+
+**Packages needed**
+
+* `install.packages("gplots")`
+
+A heatmap of metabolites, before and after imputation is plotted.
+```{r Heatmap of correlations, out.width='8cm', out.height='6cm', fig.show='hold'}
+# #run if needed
+load("rna_metab.RData")
+if(exists("metab1")){
+  gplots::heatmap.2(cor(metab1,use = 'pair'), dendrogram='none', Rowv=F, Colv=F,trace='n',
+                  breaks=seq(-1,1,length.out = 25), col=gplots::bluered)
+}
+gplots::heatmap.2(cor(metab,use = 'pair'), dendrogram='none', Rowv=F, Colv=F,trace='n',
+                  breaks=seq(-1,1,length.out = 25), col=gplots::bluered)
+```
+They are almost the same, indicating that the correlation structure within metabolites hasn't changed much.
+
+Boxplots provide a good summary to compare the distribution of the variables relative to each other. Properties such as comparable means, variances and symmetry are often good to have. To reduce the number of boxplots we filter the transcriptomic data to include genes with 95\% highest expression and IQR.
+```{r Boxplots, out.width='8cm', out.height='6cm', fig.show='hold'}
+par(mfrow=c(2,1))
+boxplot(rna[,filter_rna(rna, .95)])
+boxplot(metab)
+par(mfrow=c(1,1))
+```
+The distributions are quite symmetric and the scale is comparable across variables in each data set.
+
+# Analysis with Principal Components Analysis
+
+## Run PCA on the data
+
+For sake of computation time, we will introduce another way to calculate principal components. Instead of calculating eigenvectors of $X^\top X$, we will calculate *right singular vectors* of $X$. In R, this can be done by running `svd(X, nu=0, nv=1)`, where `nu` and `nv` represent the number of left and right singular vectors, respectively. The output is a list with three elements: `d` the *singular values*, `u` the left singular vectors, and `v` the right singular vectors and eigenvectors of $X^\top X$. 
+
+```{r PCA fit}
+pca.rna = svd(rna, 0, 2)
+pca.metab <- svd(metab, 0, 2)
+
+par(mfrow=c(1,2))
+plot(rna %*% pca.rna$v, main = "RNA PCA plot of the scores",xlab=NA,ylab=NA)
+plot(metab %*% pca.metab$v, main = "Metabolites PCA plot of the scores",xlab=NA,ylab=NA)
+par(mfrow=c(1,1))
+```
+
+
+Now to plot the weights for the two directions. Note that the RNA dataset has around 7000 weights to plot. For the metabolite weights, we add a coloring based on the type of metabolite.
+
+```{r plot loadings}
+name_col <- 1 + sapply( #First sapply loops over column names
+  X = colnames(metab),
+  FUN = function(arg){
+    crossprod(
+      c(1, 1, 3, 4, 5), # Weights to be used as categories
+      sapply(c("VLDL", "LDL", "IDL", "HDL","FA"), # metabolite classes
+             function(arg2){grepl(arg2, arg)} # compare class of metabolites
+      )
+    )
+    }
+  )
+name_col <- factor(name_col, 
+                   levels = c(3,2,4:6,1), 
+                   labels = c("VLDL", "LDL", "IDL", "HDL","FA","Other"))
+
+par(mfrow=c(2,1))
+plot(pca.rna$v, main="Weights for the RNA variables",xlab=NA,ylab=NA)
+abline(v=0, h=0, col=3)
+plot(pca.metab$v, main="Weights for the Metabolite variables",
+     xlab=NA,ylab=NA, col = name_col, pch = as.numeric(name_col))
+abline(v=0, h=0, col=3)
+legend(x = "topleft", legend = levels(name_col), col = 1:6, pch = 1:6)
+par(mfrow=c(1,1))
+
+```
+
+## Exercises
+
+- Why is it not wise to use `eigen` on $X^\top X$, where $X$ is the `rna` dataset?
+- Identify the most extreme expression probe with `identify()`. 
+    - To which gene does it map? Tip: use google. 
+    - Why does it have the largest weight? 
+- What kind of clusters appear in the metabolite weights?
+
+
+# References
+
+
+
+
