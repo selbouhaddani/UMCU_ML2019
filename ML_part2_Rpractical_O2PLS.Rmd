@@ -66,7 +66,6 @@ In cross-validation (CV) one minimizes a certain measure of error over some para
 - Difficult exercises
     - Describe, in terms of the model, situations where  the PLS and O2PLS loadings and scores will differ
     - Try to sketch how to simultaneuosly optimize the O2PLS weights, i.e. give a suitable objective function with constraints and propose a strategy to optimize this function
-    - 
 
 # Main functions (to be skipped)
 

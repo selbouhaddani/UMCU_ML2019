@@ -10,7 +10,7 @@
 
 <meta name="author" content="Said el Bouhaddani" />
 
-<meta name="date" content="2019-06-14" />
+<meta name="date" content="2019-06-17" />
 
 <title>ML course - Part 1 - PCA</title>
 <!-- Material Design fonts -->
@@ -96,7 +96,7 @@ $(document).ready(function () {
         <div id="header">
     <h1 class="title">ML course - Part 1 - PCA</h1>
                 <h4 class="author">Said el Bouhaddani</h4>
-                <h4 class="date">2019-06-14</h4>
+                <h4 class="date">2019-06-17</h4>
         </div>
     </div>
 </div>
@@ -245,7 +245,7 @@ rna &lt;-<span class="st"> </span><span class="kw">scale</span>(rna4, <span clas
 </ul>
 <p>A heatmap of metabolites, before and after imputation is plotted.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># #run if needed</span>
-<span class="kw">load</span>(<span class="st">&quot;rna_metab.RData&quot;</span>)
+<span class="co"># load(&quot;rna_metab.RData&quot;)</span>
 <span class="cf">if</span>(<span class="kw">exists</span>(<span class="st">&quot;metab1&quot;</span>)){
   gplots<span class="op">::</span><span class="kw">heatmap.2</span>(<span class="kw">cor</span>(metab1,<span class="dt">use =</span> <span class="st">&#39;pair&#39;</span>), <span class="dt">dendrogram=</span><span class="st">&#39;none&#39;</span>, <span class="dt">Rowv=</span>F, <span class="dt">Colv=</span>F,<span class="dt">trace=</span><span class="st">&#39;n&#39;</span>,
                   <span class="dt">breaks=</span><span class="kw">seq</span>(<span class="op">-</span><span class="dv">1</span>,<span class="dv">1</span>,<span class="dt">length.out =</span> <span class="dv">25</span>), <span class="dt">col=</span>gplots<span class="op">::</span>bluered)

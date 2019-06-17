@@ -151,7 +151,7 @@ We denote them by `rna` (transcripts) and `metab` (metabolites).
 A heatmap of metabolites, before and after imputation is plotted.
 ```{r Heatmap of correlations, out.width='8cm', out.height='6cm', fig.show='hold'}
 # #run if needed
-load("rna_metab.RData")
+# load("rna_metab.RData")
 if(exists("metab1")){
   gplots::heatmap.2(cor(metab1,use = 'pair'), dendrogram='none', Rowv=F, Colv=F,trace='n',
                   breaks=seq(-1,1,length.out = 25), col=gplots::bluered)
