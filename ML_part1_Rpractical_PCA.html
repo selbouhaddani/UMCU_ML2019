@@ -10,7 +10,7 @@
 
 <meta name="author" content="Said el Bouhaddani" />
 
-<meta name="date" content="2019-06-17" />
+<meta name="date" content="2019-06-18" />
 
 <title>ML course - Part 1 - PCA</title>
 <!-- Material Design fonts -->
@@ -96,7 +96,7 @@ $(document).ready(function () {
         <div id="header">
     <h1 class="title">ML course - Part 1 - PCA</h1>
                 <h4 class="author">Said el Bouhaddani</h4>
-                <h4 class="date">2019-06-17</h4>
+                <h4 class="date">2019-06-18</h4>
         </div>
     </div>
 </div>
@@ -159,6 +159,23 @@ $(document).ready(function () {
 <li>Formulate the optimization problem for finding the second direction <span class="math inline">\(w_2\)</span> given the first direction <span class="math inline">\(w_1\)</span></li>
 </ul></li>
 </ul>
+<div id="solutions" class="section level3">
+<h3>Solutions</h3>
+<ul>
+<li>Easy exercises
+<ul>
+<li>Note that by definition, <span class="math inline">\(T = XW\)</span>, therefore <span class="math inline">\(TW^\top = XWW^\top\)</span>.</li>
+<li>The weights should be random for each run, as it totally depends on the variances of the columns. PS don’t forget the transpose product <span class="math inline">\(X^\top X\)</span> in <code>eigen(t(X) %*% X)</code>.</li>
+<li>If the variables are correlated, the weights are much more stable. They should be around <span class="math inline">\(1/sqrt(2)\)</span>.</li>
+</ul></li>
+<li>More difficult exercises, you can safely skip it for now
+<ul>
+<li>This requires some special matrix manipulation skills. First, expand the squares to get <span class="math display">\[ ||X-Xww^\top||^2_F = \mathrm{tr}(X^\top X) - 2\mathrm{tr}(X^\top X ww^\top) +  \mathrm{tr}(ww^\top X^\top X ww^\top).\]</span> The constant term <span class="math inline">\(X^\top X\)</span> can be dropped. Within the trace, objects can be rotated to get <span class="math inline">\(-2 w^\top X^\top X w + w^\top w w^\top X^\top X w\)</span>. Due to the constraints, the final optimization problem is <span class="math display">\[ \min_w -2 w^\top X^\top X w + w^\top w w^\top X^\top X w = \max_w w^\top X^\top X w \]</span>, which is the original PCA formulation. Regarding the second formulation: <span class="math display">\[ ||X^\top X - cww^\top ||^2_f = -2c \mathrm{tr}(X^\top X ww^\top) + c^2 \mathrm{tr}(ww^\top ww^\top) \]</span>. Again, rotate within the trace and apply the constraint on <span class="math inline">\(w\)</span> yields something negatively proportional to $ w<sup>X</sup>X w $.</li>
+<li>This is discussed in the lecture. Choose <span class="math inline">\(w\)</span> is infinity and the maximum is not defined. Hence, the optimization problem does not admit a solution.</li>
+<li>It is solving <span class="math inline">\(\max_w w^\top X^\top X w\)</span> s.t. <span class="math inline">\(w^\top w = 1\)</span> and <span class="math inline">\(w^\top w_1 = 0\)</span></li>
+</ul></li>
+</ul>
+</div>
 </div>
 </div>
 <div id="load-real-data" class="section level1">
@@ -225,13 +242,48 @@ metab1 &lt;-<span class="st"> </span><span class="kw">t</span>(metab0[,<span cla
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">VIM<span class="op">::</span><span class="kw">aggr</span>(metab1, <span class="dt">col=</span><span class="kw">c</span>(<span class="st">&#39;navyblue&#39;</span>,<span class="st">&#39;red&#39;</span>), <span class="dt">numbers=</span><span class="ot">TRUE</span>, <span class="dt">sortVars=</span><span class="ot">FALSE</span>,
           <span class="dt">labels=</span><span class="kw">names</span>(data), <span class="dt">cex.axis=</span>.<span class="dv">7</span>, <span class="dt">gap=</span><span class="dv">3</span>, 
           <span class="dt">ylab=</span><span class="kw">c</span>(<span class="st">&quot;Histogram of missing data&quot;</span>,<span class="st">&quot;Pattern&quot;</span>))</code></pre></div>
+<p><img src="Figs/Visualize%20missingness-1.png" width="3600" /></p>
 <p>We remove participants with 100% missing metabolite measurements, i.e. missing rows.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">NAs_in_metab1 &lt;-<span class="st"> </span><span class="kw">which</span>(<span class="kw">apply</span>(metab1, <span class="dv">1</span>, <span class="cf">function</span>(e) <span class="kw">sum</span>(<span class="kw">is.na</span>(e))<span class="op">/</span><span class="kw">length</span>(e))<span class="op">==</span><span class="dv">1</span>)
 metab2 &lt;-<span class="st"> </span>metab1[<span class="op">-</span>NAs_in_metab1,]
 rna4 &lt;-<span class="st"> </span>rna3[<span class="op">-</span>NAs_in_metab1,]</code></pre></div>
 <p>Random Forests can be used to impute missing metabolites. We use the <code>missForest</code> package to do this. It takes some time, about 8 minutes on a modest i5 laptop, as can be seen from the output.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">metab2.imp &lt;-<span class="st"> </span>missForest<span class="op">::</span><span class="kw">missForest</span>(metab2, <span class="dt">verbose =</span> T)
-metab &lt;-<span class="st"> </span><span class="kw">scale</span>(metab2.imp<span class="op">$</span>ximp, <span class="dt">scale=</span>F)
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">metab2.imp &lt;-<span class="st"> </span>missForest<span class="op">::</span><span class="kw">missForest</span>(metab2, <span class="dt">verbose =</span> T)</code></pre></div>
+<pre><code>##   missForest iteration 1 in progress...done!
+##     estimated error(s): 0.424497 
+##     difference(s): 0.02779335 
+##     time: 64.97 seconds
+## 
+##   missForest iteration 2 in progress...done!
+##     estimated error(s): 0.419336 
+##     difference(s): 0.0005857988 
+##     time: 65.77 seconds
+## 
+##   missForest iteration 3 in progress...done!
+##     estimated error(s): 0.4188716 
+##     difference(s): 0.0002902178 
+##     time: 75.33 seconds
+## 
+##   missForest iteration 4 in progress...done!
+##     estimated error(s): 0.4187581 
+##     difference(s): 0.0002496452 
+##     time: 76.32 seconds
+## 
+##   missForest iteration 5 in progress...done!
+##     estimated error(s): 0.4195644 
+##     difference(s): 0.000225137 
+##     time: 75.64 seconds
+## 
+##   missForest iteration 6 in progress...done!
+##     estimated error(s): 0.4185614 
+##     difference(s): 0.0002236399 
+##     time: 78.44 seconds
+## 
+##   missForest iteration 7 in progress...done!
+##     estimated error(s): 0.4199096 
+##     difference(s): 0.0002278719 
+##     time: 75.06 seconds</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">metab &lt;-<span class="st"> </span><span class="kw">scale</span>(metab2.imp<span class="op">$</span>ximp, <span class="dt">scale=</span>F)
 rna &lt;-<span class="st"> </span><span class="kw">scale</span>(rna4, <span class="dt">scale =</span> F)
 <span class="co"># #Run if needed:</span>
 <span class="co"># save(rna,metab,file=&quot;rna_metab.RData&quot;)</span></code></pre></div>
@@ -252,13 +304,13 @@ rna &lt;-<span class="st"> </span><span class="kw">scale</span>(rna4, <span clas
 }
 gplots<span class="op">::</span><span class="kw">heatmap.2</span>(<span class="kw">cor</span>(metab,<span class="dt">use =</span> <span class="st">&#39;pair&#39;</span>), <span class="dt">dendrogram=</span><span class="st">&#39;none&#39;</span>, <span class="dt">Rowv=</span>F, <span class="dt">Colv=</span>F,<span class="dt">trace=</span><span class="st">&#39;n&#39;</span>,
                   <span class="dt">breaks=</span><span class="kw">seq</span>(<span class="op">-</span><span class="dv">1</span>,<span class="dv">1</span>,<span class="dt">length.out =</span> <span class="dv">25</span>), <span class="dt">col=</span>gplots<span class="op">::</span>bluered)</code></pre></div>
-<p>They are almost the same, indicating that the correlation structure within metabolites hasn’t changed much.</p>
+<p><img src="Figs/Heatmap%20of%20correlations-1.png" width="8cm" height="6cm" /><img src="Figs/Heatmap%20of%20correlations-2.png" width="8cm" height="6cm" /> They are almost the same, indicating that the correlation structure within metabolites hasn’t changed much.</p>
 <p>Boxplots provide a good summary to compare the distribution of the variables relative to each other. Properties such as comparable means, variances and symmetry are often good to have. To reduce the number of boxplots we filter the transcriptomic data to include genes with 95% highest expression and IQR.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">par</span>(<span class="dt">mfrow=</span><span class="kw">c</span>(<span class="dv">2</span>,<span class="dv">1</span>))
 <span class="kw">boxplot</span>(rna[,<span class="kw">filter_rna</span>(rna, .<span class="dv">95</span>)])
 <span class="kw">boxplot</span>(metab)
 <span class="kw">par</span>(<span class="dt">mfrow=</span><span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">1</span>))</code></pre></div>
-<p>The distributions are quite symmetric and the scale is comparable across variables in each data set.</p>
+<p><img src="Figs/Boxplots-1.png" width="8cm" height="6cm" /> The distributions are quite symmetric and the scale is comparable across variables in each data set.</p>
 </div>
 </div>
 <div id="analysis-with-principal-components-analysis" class="section level1">
@@ -271,8 +323,9 @@ pca.metab &lt;-<span class="st"> </span><span class="kw">svd</span>(metab, <span
 
 <span class="kw">par</span>(<span class="dt">mfrow=</span><span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">2</span>))
 <span class="kw">plot</span>(rna <span class="op">%*%</span><span class="st"> </span>pca.rna<span class="op">$</span>v, <span class="dt">main =</span> <span class="st">&quot;RNA PCA plot of the scores&quot;</span>,<span class="dt">xlab=</span><span class="ot">NA</span>,<span class="dt">ylab=</span><span class="ot">NA</span>)
-<span class="kw">plot</span>(metab <span class="op">%*%</span><span class="st"> </span>pca.metab<span class="op">$</span>v, <span class="dt">main =</span> <span class="st">&quot;Metabolites PCA plot of the scores&quot;</span>,<span class="dt">xlab=</span><span class="ot">NA</span>,<span class="dt">ylab=</span><span class="ot">NA</span>)
-<span class="kw">par</span>(<span class="dt">mfrow=</span><span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">1</span>))</code></pre></div>
+<span class="kw">plot</span>(metab <span class="op">%*%</span><span class="st"> </span>pca.metab<span class="op">$</span>v, <span class="dt">main =</span> <span class="st">&quot;Metabolites PCA plot of the scores&quot;</span>,<span class="dt">xlab=</span><span class="ot">NA</span>,<span class="dt">ylab=</span><span class="ot">NA</span>)</code></pre></div>
+<p><img src="Figs/PCA%20fit-1.png" width="3600" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">par</span>(<span class="dt">mfrow=</span><span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">1</span>))</code></pre></div>
 <p>Now to plot the weights for the two directions. Note that the RNA dataset has around 7000 weights to plot. For the metabolite weights, we add a coloring based on the type of metabolite.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">name_col &lt;-<span class="st"> </span><span class="dv">1</span> <span class="op">+</span><span class="st"> </span><span class="kw">sapply</span>( <span class="co">#First sapply loops over column names</span>
   <span class="dt">X =</span> <span class="kw">colnames</span>(metab),
@@ -295,8 +348,9 @@ name_col &lt;-<span class="st"> </span><span class="kw">factor</span>(name_col,
 <span class="kw">plot</span>(pca.metab<span class="op">$</span>v, <span class="dt">main=</span><span class="st">&quot;Weights for the Metabolite variables&quot;</span>,
      <span class="dt">xlab=</span><span class="ot">NA</span>,<span class="dt">ylab=</span><span class="ot">NA</span>, <span class="dt">col =</span> name_col, <span class="dt">pch =</span> <span class="kw">as.numeric</span>(name_col))
 <span class="kw">abline</span>(<span class="dt">v=</span><span class="dv">0</span>, <span class="dt">h=</span><span class="dv">0</span>, <span class="dt">col=</span><span class="dv">3</span>)
-<span class="kw">legend</span>(<span class="dt">x =</span> <span class="st">&quot;topleft&quot;</span>, <span class="dt">legend =</span> <span class="kw">levels</span>(name_col), <span class="dt">col =</span> <span class="dv">1</span><span class="op">:</span><span class="dv">6</span>, <span class="dt">pch =</span> <span class="dv">1</span><span class="op">:</span><span class="dv">6</span>)
-<span class="kw">par</span>(<span class="dt">mfrow=</span><span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">1</span>))</code></pre></div>
+<span class="kw">legend</span>(<span class="dt">x =</span> <span class="st">&quot;topleft&quot;</span>, <span class="dt">legend =</span> <span class="kw">levels</span>(name_col), <span class="dt">col =</span> <span class="dv">1</span><span class="op">:</span><span class="dv">6</span>, <span class="dt">pch =</span> <span class="dv">1</span><span class="op">:</span><span class="dv">6</span>)</code></pre></div>
+<p><img src="Figs/plot%20loadings-1.png" width="3600" /></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">par</span>(<span class="dt">mfrow=</span><span class="kw">c</span>(<span class="dv">1</span>,<span class="dv">1</span>))</code></pre></div>
 </div>
 <div id="exercises-1" class="section level2">
 <h2>Exercises</h2>
@@ -309,6 +363,15 @@ name_col &lt;-<span class="st"> </span><span class="kw">factor</span>(name_col,
 </ul></li>
 <li>What kind of clusters appear in the metabolite weights?</li>
 </ul>
+<div id="solutions-1" class="section level3">
+<h3>Solutions</h3>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">load</span>(<span class="st">&quot;rna_metab.RData&quot;</span>)</code></pre></div>
+<ul>
+<li>Here, <code>t(rna) %*% rna</code> is a 7385 by 7385 matrix. This does probably not fit into memory. Furthermore, with <code>eigen</code> you cannot limit the number of PC’s to be calculated.</li>
+<li>Run <code>identify(pca.rna$v, labels = colnames(rna))</code> and click on the most extreme values. Then click ESC. It is the second gene in the dataset. When inspecting the boxplots of the first 10 genes, it appears that this gene has a higher variance.</li>
+<li>Roughly speaking: VLDL and HDL.</li>
+</ul>
+</div>
 </div>
 </div>
 <div id="references" class="section level1 unnumbered">

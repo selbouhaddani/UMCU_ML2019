@@ -10,7 +10,7 @@
 
 <meta name="author" content="Said el Bouhaddani" />
 
-<meta name="date" content="2019-06-17" />
+<meta name="date" content="2019-06-18" />
 
 <title>ML course - Part 2 - O2PLS</title>
 <!-- Material Design fonts -->
@@ -96,7 +96,7 @@ $(document).ready(function () {
         <div id="header">
     <h1 class="title">ML course - Part 2 - O2PLS</h1>
                 <h4 class="author">Said el Bouhaddani</h4>
-                <h4 class="date">2019-06-17</h4>
+                <h4 class="date">2019-06-18</h4>
         </div>
     </div>
 </div>
@@ -173,6 +173,21 @@ $(document).ready(function () {
 <li>Try to sketch how to simultaneuosly optimize the O2PLS weights, i.e. give a suitable objective function with constraints and propose a strategy to optimize this function</li>
 </ul></li>
 </ul>
+<div id="solutions" class="section level3">
+<h3>Solutions</h3>
+<ul>
+<li>Easy exercises
+<ul>
+<li>First, <span class="math inline">\(X^\top X = W T^\top T W^\top + P_{Y\perp} T^\top_{Y\perp} T_{Y\perp} P_{Y\perp}^\top\)</span>. Second, <span class="math inline">\(X^\top Y = W T^\top B U C^\top\)</span>. Last, <span class="math inline">\(Y^\top Y = C B^\top T^\top T B C^\top + P_{X\perp} U^\top_{X\perp} U_{X\perp} P_{X\perp}^\top\)</span>.</li>
+<li><span class="math inline">\(A = WBC^\top\)</span></li>
+</ul></li>
+<li>Difficult exercises
+<ul>
+<li>When there is a specific component with a weak correlation between <span class="math inline">\(X\)</span> and <span class="math inline">\(Y\)</span>, but a large variance, this component will be captured in the PLS joint component. This is because the product of variance and correlation is covariance, and this will be high. O2PLS will, usually, filter this away. Moreover, even if the PLS and O2PLS joint loadings are similar, the PLS scores will contain specific variation, which will dilute the true relation between <span class="math inline">\(X\)</span> and <span class="math inline">\(Y\)</span>.</li>
+<li>One should optimize w.r.t. all loadings at the same time. A gradient ascent algorithm might be of use here.</li>
+</ul></li>
+</ul>
+</div>
 </div>
 </div>
 <div id="main-functions-to-be-skipped" class="section level1">
@@ -235,12 +250,62 @@ $(document).ready(function () {
 <h3>Fitting</h3>
 <p>We select two joint, one transcript-specific and ten metabolite-specific components. We fit the O2PLS model with default values as follows.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">load</span>(<span class="st">&quot;rna_metab.RData&quot;</span>)
-<span class="kw">library</span>(OmicsPLS)
-fit =<span class="st"> </span><span class="kw">o2m</span>(rna, metab, <span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">10</span>)
+<span class="kw">library</span>(OmicsPLS)</code></pre></div>
+<pre><code>## 
+## Attaching package: &#39;OmicsPLS&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:stats&#39;:
+## 
+##     loadings</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">fit =<span class="st"> </span><span class="kw">o2m</span>(rna, metab, <span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">10</span>)
 fit</code></pre></div>
+<pre><code>## O2PLS fit 
+## with 2 joint components  
+## and  1 orthogonal components in X 
+## and  10 orthogonal components in Y 
+## Elapsed time: 2.73 sec</code></pre>
 <p>The total runtime of the fit was about 3 seconds. Note that univariate correlation tests would require almost one million tests to be performed, and does not take into account correlation between metabolites and genes. Also multivariate linear regression cannot deal with the large amount of variables.</p>
 <p>A summary of the results is obtained via</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">summary</span>(fit)</code></pre></div>
+<pre><code>## 
+## *** Summary of the O2PLS fit *** 
+## 
+## -  Call: o2m(X = rna, Y = metab, n = 2, nx = 1, ny = 10) 
+## 
+## -  Modeled variation
+## -- Total variation:
+## in X: 332035.7 
+## in Y: 68353.8 
+## 
+## -- Joint, Orthogonal and Noise as proportions:
+## 
+##            data X data Y
+## Joint       0.124  0.410
+## Orthogonal  0.026  0.062
+## Noise       0.850  0.527
+## 
+## -- Predictable variation in Y-joint part by X-joint part:
+## Variation in T*B_T relative to U: 0.15 
+## -- Predictable variation in X-joint part by Y-joint part:
+## Variation in U*B_U relative to T: 0.116 
+## 
+## -- Variances per component:
+## 
+##           Comp 1   Comp 2
+## X joint 24998.79 16206.10
+## Y joint 18486.88  9568.47
+## 
+##          Comp 1
+## X Orth 56765.75
+## 
+##          Comp 1 Comp 2   Comp 3   Comp 4   Comp 5   Comp 6  Comp 7  Comp 8
+## Y Orth 6632.482   3290 2053.118 1197.246 1095.368 1100.443 835.251 940.188
+##         Comp 9 Comp 10
+## Y Orth 569.562 811.094
+## 
+## 
+## -  Coefficient in &#39;U = T B_T + H_U&#39; model:
+## -- Diagonal elements of B_T =
+##  0.4 0.338</code></pre>
 <p>The joint, orthogonal and noise variations are shown as proportions. The two joint components explains about 12% of the transcriptomic variation and 41% of the metabolite variation, these proportions are 17% and 24% for the orthogonal part. We also observe that <em>relative to the variation in <span class="math inline">\(U\)</span></em>, the variation predicted by <span class="math inline">\(T\)</span> (or equivalently <span class="math inline">\(X\)</span>, transcripts) is 11.6%. Looking relative to the variation in <span class="math inline">\(Y\)</span> (metabolites), the variation predicted by <span class="math inline">\(T\)</span> (or equivalently <span class="math inline">\(X\)</span>) is <span class="math inline">\(0.116*0.41\)</span>. Similar calculations can be performed for the <span class="math inline">\(Y\)</span> part.</p>
 </div>
 <div id="plotting" class="section level3">
@@ -341,7 +406,7 @@ p_rna &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="
 
 ## Finally plot both plots in one figure.
 <span class="kw">grid.arrange</span>(p_metab, p_rna, <span class="dt">ncol=</span><span class="dv">2</span>)</code></pre></div>
-<!-- The genes with highest absolute loading values are most related with the metabolites having highest absolute loading values on the respective axes. It can be seen that especially VLDL metabolites cluster together in both axes, indicating that are correlated within both joint components. Moreover in the second component they tend to be negatively correlated to HDL metabolites. The VLDL metabolites are most correlated with expression of the *HDC* gene in the first component. In the second component the VLDL and HDL metabolites are most correlated with expression of genes involved in defense response and inflammation (e.g. *FCER1A*, *HDC* and *DEFA1*). -->
+<p><img src="Figs/Loadings%20plot-1.png" width="3600" /> <!-- The genes with highest absolute loading values are most related with the metabolites having highest absolute loading values on the respective axes. It can be seen that especially VLDL metabolites cluster together in both axes, indicating that are correlated within both joint components. Moreover in the second component they tend to be negatively correlated to HDL metabolites. The VLDL metabolites are most correlated with expression of the *HDC* gene in the first component. In the second component the VLDL and HDL metabolites are most correlated with expression of genes involved in defense response and inflammation (e.g. *FCER1A*, *HDC* and *DEFA1*). --></p>
 </div>
 </div>
 <div id="exercises-1" class="section level2">
@@ -354,6 +419,12 @@ p_rna &lt;-<span class="st"> </span><span class="kw">ggplot</span>(<span class="
 <li>Which genes and clusters are related in which component</li>
 </ul></li>
 </ul>
+<div id="solutions-1" class="section level3">
+<h3>Solutions</h3>
+<ul>
+<li>The first component is interpreted as the VLDL component. The second component is more or less the HDL vs VLDL component. The corresponding genes in the second component seem to be involved in the immune system, especially HLA-DRB5 and DEFA1. This indicates that HDL vs VLDL concentrations are linked to immunology.</li>
+</ul>
+</div>
 </div>
 </div>
 <div id="references" class="section level1 unnumbered">

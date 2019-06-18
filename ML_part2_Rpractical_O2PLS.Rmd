@@ -13,7 +13,7 @@ bibliography: references.bib
 library(knitr)
 library(rmdformats)
 
-opts_chunk$set(fig.path='Figs/', eval=FALSE,
+opts_chunk$set(fig.path='Figs/', eval=TRUE,
                echo=TRUE, warning=TRUE, message=TRUE, dev='png', dpi=600)
 ```
 
@@ -66,6 +66,16 @@ In cross-validation (CV) one minimizes a certain measure of error over some para
 - Difficult exercises
     - Describe, in terms of the model, situations where  the PLS and O2PLS loadings and scores will differ
     - Try to sketch how to simultaneuosly optimize the O2PLS weights, i.e. give a suitable objective function with constraints and propose a strategy to optimize this function
+
+### Solutions
+
+- Easy exercises
+    - First, $X^\top X = W T^\top T W^\top  + P_{Y\perp} T^\top_{Y\perp} T_{Y\perp} P_{Y\perp}^\top$. Second, $X^\top Y = W T^\top B U C^\top$. Last, $Y^\top Y = C B^\top T^\top T B C^\top  + P_{X\perp} U^\top_{X\perp} U_{X\perp} P_{X\perp}^\top$.
+    - $A = WBC^\top$
+- Difficult exercises
+    - When there is a specific component with a weak correlation between $X$ and $Y$, but a large variance, this component will be captured in the PLS joint component. This is because the product of variance and correlation is covariance, and this will be high. O2PLS will, usually, filter this away. Moreover, even if the PLS and O2PLS joint loadings are similar, the PLS scores will contain specific variation, which will dilute the true relation between $X$ and $Y$.
+    - One should optimize w.r.t. all loadings at the same time. A gradient ascent algorithm might be of use here. 
+
 
 # Main functions (to be skipped)
 
@@ -273,6 +283,11 @@ grid.arrange(p_metab, p_rna, ncol=2)
     - Top genes and their functionality (use google)
     - Top metabolite clusters
     - Which genes and clusters are related in which component
+
+
+### Solutions
+
+- The first component is interpreted as the VLDL component. The second component is more or less the HDL vs VLDL component. The corresponding genes in the second component seem to be involved in the immune system, especially HLA-DRB5 and DEFA1. This indicates that HDL vs VLDL concentrations are linked to immunology.
 
 
 # References

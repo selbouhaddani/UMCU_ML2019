@@ -13,7 +13,7 @@ bibliography: references.bib
 library(knitr)
 library(rmdformats)
 
-opts_chunk$set(fig.path='Figs/', eval=FALSE,
+opts_chunk$set(fig.path='Figs/', eval=TRUE,
                echo=TRUE, warning=TRUE, message=TRUE, dev='png', dpi=600)
 ```
 
@@ -42,6 +42,20 @@ As discussed in the lecture, the PCA solution for finding $w$ that maximizes the
     - What is wrong with the following optimization problem: $\max_w w^\top X^\top X w$ (with $w$ unrestricted)
     - Formulate the optimization problem for finding the second direction $w_2$ given the first direction $w_1$
 
+### Solutions
+- Easy exercises
+    - Note that by definition, $T = XW$, therefore $TW^\top = XWW^\top$.
+    - The weights should be random for each run, as it totally depends on the variances of the columns. PS don't forget the transpose product $X^\top X$ in `eigen(t(X) %*% X)`.
+    - If the variables are correlated, the weights are much more stable. They should be around $1/sqrt(2)$. 
+- More difficult exercises, you can safely skip it for now
+    - This requires some special matrix manipulation skills. First, expand the squares to get 
+    $$ ||X-Xww^\top||^2_F = \mathrm{tr}(X^\top X) - 2\mathrm{tr}(X^\top X ww^\top) +  \mathrm{tr}(ww^\top X^\top X ww^\top).$$
+    The constant term $X^\top X$ can be dropped. Within the trace, objects can be rotated to get $-2 w^\top X^\top X w + w^\top w w^\top X^\top X w$. Due to the constraints, the final optimization problem is 
+    $$ \min_w -2 w^\top X^\top X w + w^\top w w^\top X^\top X w = \max_w w^\top X^\top X w $$, which is the original PCA formulation.
+    Regarding the second formulation: 
+    $$ ||X^\top X - cww^\top ||^2_f = -2c \mathrm{tr}(X^\top X ww^\top) + c^2 \mathrm{tr}(ww^\top ww^\top) $$. Again, rotate within the trace and apply the constraint on $w$ yields something negatively proportional to $ w^\top X^\top X w $.
+    - This is discussed in the lecture. Choose $w$ is infinity and the maximum is not defined. Hence, the optimization problem does not admit a solution.
+    - It is solving $\max_w w^\top X^\top X w$ s.t. $w^\top w = 1$ and $w^\top w_1 = 0$
 
 # Load real data 
 
@@ -50,7 +64,7 @@ We start with transcriptomic and metabolomic measurements from a Finnish populat
 ## Load the data
 
 Now we download the data and prepare it in the right format (samples as rows and genes as columns) and give the rows and columns the right names. Note that this code chunk automatically downloads and loads the transcriptomic data into memory.
-```{r Load RNA data, eval = F}
+```{r Load RNA data}
 if(!("test.tab" %in% list.files())){
   ## If you didn't download the expression data, 
   ## this code will download it to the current directory (getwd())
@@ -85,14 +99,14 @@ filter_rna <- function(rna=rna, prop = 0.75){
 }
 ```
 
-```{r filter genes v2, eval = F}
+```{r filter genes v2}
 rna3 <- rna2[,filter_rna(rna2)]
 rm(rna0)
 rm(rna1)
 ```
 
 We also download and load the metabolite data and process it to have samples as rows and set the columns names.
-```{r Load metabolite data, eval = F}
+```{r Load metabolite data}
 if(!("metabonomic_data.txt" %in% list.files())){
   temp <- tempfile()
   download.file(
@@ -117,14 +131,14 @@ colnames(metab1) <- metab0$Metabolite
 
 Note that we have missingness in the metabolite data. The functions in OmicsPLS currently do not support missing data, as this is a delicate matter.
 Some diagostics on the missingness in the metabolite data can be obtained. Firstly we plot a histogram of the missing data. We need the `VIM` package for this.
-```{r Visualize missingness, warning=FALSE, eval=F}
+```{r Visualize missingness, warning=FALSE}
 VIM::aggr(metab1, col=c('navyblue','red'), numbers=TRUE, sortVars=FALSE,
           labels=names(data), cex.axis=.7, gap=3, 
           ylab=c("Histogram of missing data","Pattern"))
 ```
 
 We remove participants with 100\% missing metabolite measurements, i.e. missing rows.
-```{r Remove complete missings, eval=F}
+```{r Remove complete missings}
 NAs_in_metab1 <- which(apply(metab1, 1, function(e) sum(is.na(e))/length(e))==1)
 metab2 <- metab1[-NAs_in_metab1,]
 rna4 <- rna3[-NAs_in_metab1,]
@@ -132,7 +146,7 @@ rna4 <- rna3[-NAs_in_metab1,]
 
 
 Random Forests can be used to impute missing metabolites. We use the `missForest` package to do this. It takes some time, about 8 minutes on a modest i5 laptop, as can be seen from the output.
-```{r Impute metabolites, eval=F}
+```{r Impute metabolites}
 metab2.imp <- missForest::missForest(metab2, verbose = T)
 metab <- scale(metab2.imp$ximp, scale=F)
 rna <- scale(rna4, scale = F)
@@ -223,6 +237,17 @@ par(mfrow=c(1,1))
     - To which gene does it map? Tip: use google. 
     - Why does it have the largest weight? 
 - What kind of clusters appear in the metabolite weights?
+
+### Solutions
+
+```{r, eval=TRUE}
+load("rna_metab.RData")
+```
+
+
+- Here, `t(rna) %*% rna` is a `r ncol(rna)` by `r ncol(rna)` matrix. This does probably not fit into memory. Furthermore, with `eigen` you cannot limit the number of PC's to be calculated.
+- Run `identify(pca.rna$v, labels = colnames(rna))` and click on the most extreme values. Then click ESC. It is the second gene in the dataset. When inspecting the boxplots of the first 10 genes, it appears that this gene has a higher variance.
+- Roughly speaking: VLDL and HDL. 
 
 
 # References
